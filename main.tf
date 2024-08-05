@@ -29,9 +29,9 @@ locals {
 resource "aws_ssoadmin_permission_set" "this" {
   for_each         = { for p in var.permission_sets : p.name => p }
   instance_arn     = data.aws_ssoadmin_instances.sso.arns[0]
-  name             = p.name
-  description      = try(p.description, "Managed by Terraform")
-  session_duration = try(p.session_duration, "PT12H")
+  name             = each.value.name
+  description      = try(each.value.description, "Managed by Terraform")
+  session_duration = try(each.value.session_duration, "PT12H")
   tags             = local.all_tags
 }
 
@@ -44,10 +44,10 @@ resource "aws_ssoadmin_managed_policy_attachment" "policy" {
   for_each           = local.managed_policies
   instance_arn       = data.aws_ssoadmin_instances.sso.arns[0]
   permission_set_arn = aws_ssoadmin_permission_set.this[each.value.permission_set].arn
-  managed_policy_arn = aws_iam_policy.managed_policy[each.key].arn
+  managed_policy_arn = data.aws_iam_policy.managed_policy[each.key].arn
 }
 
-data "aws_iam_policy_document" {
+data "aws_iam_policy_document" "inline_policy" {
   for_each = local.inline_policies
   version  = "2012-10-17"
   dynamic "statement" {
@@ -65,5 +65,5 @@ resource "aws_ssoadmin_permission_set_inline_policy" "inline_policy" {
   for_each           = local.inline_policies
   instance_arn       = data.aws_ssoadmin_instances.sso.arns[0]
   permission_set_arn = aws_ssoadmin_permission_set.this[each.value.permission_set].arn
-  inline_policy      = aws_iam_policy_document[each.key].json
+  inline_policy      = data.aws_iam_policy_document.inline_policy[each.key].json
 }

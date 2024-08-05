@@ -9,7 +9,7 @@ data "aws_ssoadmin_instances" "sso" {}
 locals {
   managed_policies = merge([
     for p in var.permission_sets : {
-      for pol in p.managed_policy_arns : "${p.name}-${pol}" => {
+      for pol in try(p.managed_policy_arns, []) : "${p.name}-${pol}" => {
         permission_set = p.name
         arn            = pol
       }
@@ -17,7 +17,7 @@ locals {
   ]...)
   inline_policies = merge([
     for p in var.permission_sets : {
-      for pol in p.inline_policy : "${p.name}-${pol.name}" => {
+      for pol in try(p.inline_policy, []) : "${p.name}-${pol.name}" => {
         permission_set = p.name
         name           = pol.name
         statements     = pol.statements

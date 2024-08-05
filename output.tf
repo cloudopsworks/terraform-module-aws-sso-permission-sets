@@ -14,10 +14,10 @@ output "identity_store_arn" {
 
 output "permission_sets" {
   value = {
-    for p in aws_ssoadmin_permission_set.this : p.value.name => {
-      id   = p.value.id
-      arn  = p.value.arn
-      name = p.value.name
+    for p in aws_ssoadmin_permission_set.this : p.name => {
+      id   = p.id
+      arn  = p.arn
+      name = p.name
     }
   }
 }

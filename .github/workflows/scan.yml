@@ -92,7 +92,7 @@ jobs:
         id: secrets
         uses: ./bp/ci/scan/secrets
         with:
-          token: ${{ secrets.BOT_TOKEN_SCOPED }}
+          token: ${{ secrets.BOT_TOKEN }}
           source_ref: ${{ github.head_ref }}
 
   semgrep:

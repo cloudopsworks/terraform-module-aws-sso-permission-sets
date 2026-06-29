@@ -1,6 +1,14 @@
 name: Terraform AWS IAM Identity Center Permission Sets configuration
 #logo: logo/logo.jpg
 
+badges:
+  - name: Latest Release
+    image: https://img.shields.io/github/release/cloudopsworks/terraform-module-aws-sso-permission-sets.svg?style=for-the-badge
+    url: https://github.com/cloudopsworks/terraform-module-aws-sso-permission-sets/releases/latest
+  - name: Last Updated
+    image: https://img.shields.io/github/last-commit/cloudopsworks/terraform-module-aws-sso-permission-sets.svg?style=for-the-badge
+    url: https://github.com/cloudopsworks/terraform-module-aws-sso-permission-sets/commits
+
 license: "APACHE2"
 
 copyrights:
@@ -33,104 +41,84 @@ introduction: |-
 
   Requirements
   - Terraform >= 1.3
-  - AWS Provider ~> 6.4
+  - AWS Provider ~> 6.35
   - AWS IAM Identity Center must be enabled in the target account/region
 
 # How to use this project
 usage: |-
-  # Module inputs (YAML reference)
-  # Required organizational context used for tagging and naming
-  org:
-    organization_name: "AcmeCorp"        # string (required)
-    organization_unit: "Platform"        # string (required)
-    environment_type:  "Production"      # string (required)
-    environment_name:  "Prod"            # string (required)
+  This module is consumed through Terragrunt. Bootstrap a new deployment using
+  Terragrunt's built-in scaffold command, which sources `.boilerplate/boilerplate.yml`
+  to generate `terragrunt.hcl`, `inputs.yaml`, and `local-tags.json`.
 
-  # Hub/Spoke context (optional)
-  is_hub: false                           # bool, default: false
-  spoke_def: "001"                        # string, default: "001"
+  Scaffolding workflow
 
-  # Optional extra tags merged with computed common tags
-  extra_tags: {}                          # map(string), default: {}
+  ```sh
+  # 1. Create and enter the target deployment directory
+  mkdir -p prod/us-east-1/001/permission-sets
+  cd prod/us-east-1/001/permission-sets
 
-  # Permission sets to create (primary input)
-  # The structure below mirrors variables-sso.tf and is preserved here for clarity
-  permission_sets:
-    - name: "Admin"                       # required, unique name per set
-      description: "Admin permission set" # optional; default: "Managed by Terraform"
-      session_duration: "PT12H"           # optional ISO 8601; default: PT12H (max 12h)
-      managed_policy_arns:                # optional list of AWS managed policy ARNs
-        - "arn:aws:iam::aws:policy/AdministratorAccess"
-        - "arn:aws:iam::aws:policy/SecurityAudit"
-      inline_policy:                      # optional list of named inline policies
-        - name: "InlinePolicy"            # required when providing inline policy entries
-          statements:                     # one or more statements
-            - sid: "S3Write"              # optional SID
-              effect: "Allow"             # "Allow" or "Deny"
-              actions:                    # list of IAM actions
-                - "s3:GetObject"
-                - "s3:PutObject"
-              resources:                  # list of ARNs
-                - "arn:aws:s3:::mybucket/*"
+  # 2. Scaffold the module (do NOT use --working-dir)
+  terragrunt scaffold github.com/cloudopsworks/terraform-module-aws-sso-permission-sets
 
-  # Notes
-  # - name must be unique across permission_sets.
-  # - managed_policy_arns are validated via data.aws_iam_policy.
-  # - inline_policy is compiled into an AWS IAM policy document and set on the permission set.
-  # - session_duration must be an ISO 8601 duration (e.g., PT1H, PT8H, PT12H).
+  # 3. Edit inputs.yaml with deployment-specific values
+  #    (all keys and comments are pre-populated from .boilerplate/inputs.yaml)
+  vi inputs.yaml
 
-  # Outputs
-  # identity_store_id: string
-  # identity_store_arn: string
-  # permission_sets: map keyed by permission set name => { id, arn, name }
+  # 4. Apply
+  terragrunt apply
+  ```
 
-# Example usage
-examples: |-
-  Terragrunt-based usage (recommended)
+  Generated `inputs.yaml` (from `.boilerplate/inputs.yaml`)
 
-  The following examples are based on the boilerplate templates in .boilerplate.
-  Folder layout:
+  ```yaml
+  # Module configuration
+  #
+  # permission_sets: (Optional) List of permission sets to create in the IAM Identity
+  #                  Center instance. Default: []
+  #   - name: "Admin"                                      # (Required) Unique name of the permission set.
+  #     description: "Admin permission set"                # (Optional) Description of the permission set. Default: "Managed by Terraform"
+  #     session_duration: "PT8H"                           # (Optional) Session duration as an ISO-8601 duration (e.g. PT1H, PT8H, PT12H). Default: "PT12H"
+  #     managed_policy_arns:                               # (Optional) List of AWS managed policy ARNs to attach. Default: []
+  #       - "arn:aws:iam::aws:policy/AdministratorAccess"
+  #       - "arn:aws:iam::aws:policy/SecurityAudit"
+  #     inline_policy:                                     # (Optional) List of named inline policies to attach. Default: []
+  #       - name: "InlinePolicy"                           # (Required) Name of the inline policy (when an inline_policy entry is provided).
+  #         statements:                                    # (Required) One or more IAM policy statements.
+  #           - sid: "SIDNAME"                             # (Optional) Statement ID. Default: null
+  #             effect: "Allow"                            # (Required) Statement effect. Valid values: "Allow", "Deny".
+  #             actions:                                   # (Required) List of IAM actions for the statement.
+  #               - "s3:GetObject"
+  #               - "s3:PutObject"
+  #             resources:                                 # (Required) List of resource ARNs the statement applies to.
+  #               - "arn:aws:s3:::mybucket/*"
+  permission_sets: []
+  ```
 
-  live/
-    global-inputs.yaml
-    global-tags.json
-    env-inputs.yaml
-    identity-center/
-      permission-sets/
-        terragrunt.hcl
-        inputs.yaml
-        local-tags.json
+  Generated `terragrunt.hcl` (from `.boilerplate/terragrunt.hcl`)
 
-  Parent inputs and tags (in live/):
+  The scaffold loads `inputs.yaml` as `local.local_vars` and wires each module variable
+  into the `inputs` block. `org`, `spoke_def`, and `extra_tags` are sourced from the
+  Terragrunt hierarchy; `permission_sets` comes from your `inputs.yaml`.
 
-  # live/global-inputs.yaml
-  org:
-    organization_name: "AcmeCorp"
-    organization_unit: "Platform"
-    environment_name:  "Prod"
-    environment_type:  "Production"
-
-  # live/global-tags.json
-  {"Owner":"platform-team","CostCenter":"1234"}
-
-  # live/env-inputs.yaml (if you keep org here as in boilerplate; terragrunt template reads env_vars.org)
-  org:
-    organization_name: "AcmeCorp"
-    organization_unit: "Platform"
-    environment_name:  "Prod"
-    environment_type:  "Production"
-
-  Module stack (in live/identity-center/permission-sets/):
-
-  # terragrunt.hcl (derived from .boilerplate/terragrunt.hcl)
+  ```hcl
   locals {
     local_vars  = yamldecode(file("./inputs.yaml"))
+    spoke_vars  = yamldecode(file(find_in_parent_folders("spoke-inputs.yaml")))
+    region_vars = yamldecode(file(find_in_parent_folders("region-inputs.yaml")))
+    env_vars    = yamldecode(file(find_in_parent_folders("env-inputs.yaml")))
     global_vars = yamldecode(file(find_in_parent_folders("global-inputs.yaml")))
-    global_tags = jsondecode(file(find_in_parent_folders("global-tags.json")))
+
     local_tags  = jsondecode(file("./local-tags.json"))
+    spoke_tags  = jsondecode(file(find_in_parent_folders("spoke-tags.json")))
+    region_tags = jsondecode(file(find_in_parent_folders("region-tags.json")))
+    env_tags    = jsondecode(file(find_in_parent_folders("env-tags.json")))
+    global_tags = jsondecode(file(find_in_parent_folders("global-tags.json")))
 
     tags = merge(
       local.global_tags,
+      local.env_tags,
+      local.region_tags,
+      local.spoke_tags,
       local.local_tags
     )
   }
@@ -140,21 +128,40 @@ examples: |-
   }
 
   terraform {
-    # Use a released tag of this module
     source = "git::https://github.com/cloudopsworks/terraform-module-aws-sso-permission-sets.git?ref=vX.Y.Z"
   }
 
   inputs = {
-    org        = local.global_vars.org
-    extra_tags = local.tags
-
-    # Pass through all required/optional inputs; here we only use permission_sets via inputs.yaml
+    is_hub          = false
+    org             = local.env_vars.org
+    spoke_def       = local.spoke_vars.spoke
     permission_sets = try(local.local_vars.permission_sets, [])
-    is_hub     = try(local.local_vars.is_hub, false)
-    spoke_def  = try(local.local_vars.spoke_def, "001")
+    extra_tags      = local.tags
   }
+  ```
 
-  # inputs.yaml (Example 1: Single Admin permission set with AWS managed policies)
+  Notes
+  - `name` must be unique across `permission_sets`.
+  - `managed_policy_arns` are validated via `data.aws_iam_policy`.
+  - `inline_policy` is compiled into an AWS IAM policy document and set on the permission set.
+  - `session_duration` must be an ISO 8601 duration (e.g., PT1H, PT8H, PT12H; max PT12H).
+
+  Outputs
+  - `identity_store_id`: string
+  - `identity_store_arn`: string
+  - `permission_sets`: map keyed by permission set name => { id, arn, name }
+
+# Example usage
+examples: |-
+  Terragrunt-based usage (recommended)
+
+  Scaffold the module as shown in the Usage section, then populate `inputs.yaml`.
+  The examples below show different `permission_sets` shapes; `org`, `spoke_def`,
+  and `extra_tags` are supplied automatically by the Terragrunt hierarchy.
+
+  Example 1: Single Admin permission set with AWS managed policies
+
+  # inputs.yaml
   permission_sets:
     - name: "Admin"
       description: "Administrative access"
@@ -196,12 +203,13 @@ examples: |-
               resources:
                 - "arn:aws:s3:::acme-prod-*"
 
-  Hub/Spoke variant (when adopting the full boilerplate):
+  Hub/Spoke context
 
-  - Set is_hub in your stack (or in inputs.yaml) and provide spoke_def when needed.
-  - Use the full .boilerplate/terragrunt.hcl which reads:
-    - env-inputs.yaml, region-inputs.yaml, spoke-inputs.yaml for org and spoke_def
-    - env/global/region/spoke tag JSON files which are merged into extra_tags
+  - `is_hub` is injected by the boilerplate/template engine during scaffold; you do not set it in `inputs.yaml`.
+  - `spoke_def` is sourced from `spoke-inputs.yaml` (`local.spoke_vars.spoke`) in the Terragrunt hierarchy.
+  - The generated `terragrunt.hcl` reads `env-inputs.yaml`, `region-inputs.yaml`, `spoke-inputs.yaml`,
+    and `global-inputs.yaml` for org/spoke context, and merges the env/global/region/spoke tag JSON
+    files into `extra_tags`.
 
   Direct Terraform usage (without Terragrunt)
 
@@ -245,15 +253,15 @@ examples: |-
 quickstart: |-
   Prerequisites
   - Enable AWS IAM Identity Center (SSO) in the target account/region.
-  - Terraform >= 1.3 and AWS provider ~> 6.4.
+  - Terraform >= 1.3 and AWS provider ~> 6.35.
   - Valid AWS credentials configured for the target account.
 
   Using Terragrunt (recommended)
-  1. Create the live/ structure as shown in the Examples section.
-  2. Populate global-inputs.yaml with your org block; set global-tags.json as needed.
-  3. In identity-center/permission-sets/, copy terragrunt.hcl from the Examples section and set the module source ref.
-  4. Create inputs.yaml with your permission_sets.
-  5. terragrunt init; terragrunt plan; terragrunt apply.
+  1. Create and enter the target deployment directory (e.g. `mkdir -p prod/us-east-1/001/permission-sets && cd $_`).
+  2. Run `terragrunt scaffold github.com/cloudopsworks/terraform-module-aws-sso-permission-sets`.
+  3. Edit the generated `inputs.yaml` with your `permission_sets`.
+  4. Set the module source ref in the generated `terragrunt.hcl`.
+  5. `terragrunt init`; `terragrunt plan`; `terragrunt apply`.
 
   Using Terraform directly
   1. Add the module block from the Examples section to your configuration.

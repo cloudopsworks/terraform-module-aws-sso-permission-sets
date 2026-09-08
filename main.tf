@@ -56,10 +56,20 @@ data "aws_iam_policy_document" "inline_policy" {
   dynamic "statement" {
     for_each = each.value.statements
     content {
-      sid       = try(statement.value.sid, null)
-      effect    = statement.value.effect
-      actions   = statement.value.actions
-      resources = statement.value.resources
+      sid           = try(statement.value.sid, null)
+      effect        = statement.value.effect
+      actions       = try(statement.value.actions, [])
+      resources     = try(statement.value.resources, [])
+      not_actions   = try(statement.value.not_actions, [])
+      not_resources = try(statement.value.not_resources, [])
+      dynamic "condition" {
+        for_each = try(statement.value.condition, statement.value.conditions, [])
+        content {
+          test     = condition.value.test
+          variable = condition.value.variable
+          values   = condition.value.values
+        }
+      }
     }
   }
 }

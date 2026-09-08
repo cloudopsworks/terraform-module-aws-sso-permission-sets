@@ -113,11 +113,20 @@ Generated `inputs.yaml` (from `.boilerplate/inputs.yaml`)
 #         statements:                                    # (Required) One or more IAM policy statements.
 #           - sid: "SIDNAME"                             # (Optional) Statement ID. Default: null
 #             effect: "Allow"                            # (Required) Statement effect. Valid values: "Allow", "Deny".
-#             actions:                                   # (Required) List of IAM actions for the statement.
+#             actions:                                   # (Optional) List of IAM actions the statement allows or denies. Mutually exclusive with not_actions. Default: []
 #               - "s3:GetObject"
 #               - "s3:PutObject"
-#             resources:                                 # (Required) List of resource ARNs the statement applies to.
+#             not_actions:                               # (Optional) List of IAM actions the statement applies to by exclusion. Mutually exclusive with actions. Default: []
+#               - "s3:DeleteBucket"
+#             resources:                                 # (Optional) List of resource ARNs the statement applies to. Mutually exclusive with not_resources. Default: []
 #               - "arn:aws:s3:::mybucket/*"
+#             not_resources:                             # (Optional) List of resource ARNs the statement applies to by exclusion. Mutually exclusive with resources. Default: []
+#               - "arn:aws:s3:::otherbucket/*"
+#             conditions:                                # (Optional) List of conditions applied to the statement. Alias: condition. Default: []
+#               - test: "StringEquals"                   # (Required) Condition operator (when a conditions entry is provided). e.g. StringEquals, StringLike, ArnLike, Bool, IpAddress, DateGreaterThan.
+#                 variable: "aws:PrincipalTag/team"      # (Required) Condition key the operator is evaluated against.
+#                 values:                                # (Required) List of values compared against the condition key.
+#                   - "platform"
 permission_sets: []
 ```
 
@@ -171,6 +180,8 @@ Notes
 - `name` must be unique across `permission_sets`.
 - `managed_policy_arns` are validated via `data.aws_iam_policy`.
 - `inline_policy` is compiled into an AWS IAM policy document and set on the permission set.
+- Statement `conditions` (alias `condition`) are rendered as IAM policy condition blocks; each entry needs `test`, `variable`, and `values`.
+- Each statement takes either `actions` or `not_actions`, and either `resources` or `not_resources`; the pairs are mutually exclusive in AWS IAM.
 - `session_duration` must be an ISO 8601 duration (e.g., PT1H, PT8H, PT12H; max PT12H).
 
 Outputs
@@ -242,6 +253,11 @@ permission_sets:
               - "glue:*"
             resources:
               - "*"
+            conditions:
+              - test: "StringEquals"
+                variable: "aws:RequestedRegion"
+                values:
+                  - "us-east-1"
           - sid: "DenyProdBuckets"
             effect: "Deny"
             actions:
@@ -312,26 +328,26 @@ Available targets:
 ## Requirements
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.35 |
 
 ## Providers
 
 | Name | Version |
-|------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.35 |
+| ---- | ------- |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.52.0 |
 
 ## Modules
 
 | Name | Source | Version |
-|------|--------|---------|
-| <a name="module_tags"></a> [tags](#module\_tags) | cloudopsworks/tags/local | 1.0.9 |
+| ---- | ------ | ------- |
+| <a name="module_tags"></a> [tags](#module\_tags) | cloudopsworks/tags/local | 1.0.10 |
 
 ## Resources
 
 | Name | Type |
-|------|------|
+| ---- | ---- |
 | [aws_ssoadmin_managed_policy_attachment.policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_managed_policy_attachment) | resource |
 | [aws_ssoadmin_permission_set.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_permission_set) | resource |
 | [aws_ssoadmin_permission_set_inline_policy.inline_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_permission_set_inline_policy) | resource |
@@ -343,7 +359,7 @@ Available targets:
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_extra_tags"></a> [extra\_tags](#input\_extra\_tags) | Extra tags to add to the resources | `map(string)` | `{}` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
@@ -353,7 +369,7 @@ Available targets:
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ---- | ----------- |
 | <a name="output_identity_store_arn"></a> [identity\_store\_arn](#output\_identity\_store\_arn) | ARN of the discovered AWS IAM Identity Center instance. |
 | <a name="output_identity_store_id"></a> [identity\_store\_id](#output\_identity\_store\_id) | Identity store ID of the discovered AWS IAM Identity Center instance. |
 | <a name="output_permission_sets"></a> [permission\_sets](#output\_permission\_sets) | Map of created permission sets keyed by name, each with its id, arn, and name. |

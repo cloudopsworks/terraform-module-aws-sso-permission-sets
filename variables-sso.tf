@@ -24,6 +24,11 @@
 #               - "s3:PutObject"
 #             resources:                                 # (Required) List of resource ARNs the statement applies to.
 #               - "arn:aws:s3:::mybucket/*"
+#             conditions:                                # (Optional) List of conditions applied to the statement. Alias: condition. Default: []
+#               - test: "StringEquals"                   # (Required) Condition operator (when a conditions entry is provided). e.g. StringEquals, StringLike, ArnLike, Bool, IpAddress, DateGreaterThan.
+#                 variable: "aws:PrincipalTag/team"      # (Required) Condition key the operator is evaluated against.
+#                 values:                                # (Required) List of values compared against the condition key.
+#                   - "platform"
 variable "permission_sets" {
   description = "(Optional) List of permission sets to create in the IAM Identity Center instance. Default: []"
   type        = any

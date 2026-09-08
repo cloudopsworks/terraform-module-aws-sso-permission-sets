@@ -91,6 +91,11 @@ usage: |-
   #               - "s3:PutObject"
   #             resources:                                 # (Required) List of resource ARNs the statement applies to.
   #               - "arn:aws:s3:::mybucket/*"
+  #             conditions:                                # (Optional) List of conditions applied to the statement. Alias: condition. Default: []
+  #               - test: "StringEquals"                   # (Required) Condition operator (when a conditions entry is provided). e.g. StringEquals, StringLike, ArnLike, Bool, IpAddress, DateGreaterThan.
+  #                 variable: "aws:PrincipalTag/team"      # (Required) Condition key the operator is evaluated against.
+  #                 values:                                # (Required) List of values compared against the condition key.
+  #                   - "platform"
   permission_sets: []
   ```
 
@@ -144,6 +149,7 @@ usage: |-
   - `name` must be unique across `permission_sets`.
   - `managed_policy_arns` are validated via `data.aws_iam_policy`.
   - `inline_policy` is compiled into an AWS IAM policy document and set on the permission set.
+  - Statement `conditions` (alias `condition`) are rendered as IAM policy condition blocks; each entry needs `test`, `variable`, and `values`.
   - `session_duration` must be an ISO 8601 duration (e.g., PT1H, PT8H, PT12H; max PT12H).
 
   Outputs
@@ -196,6 +202,11 @@ examples: |-
                 - "glue:*"
               resources:
                 - "*"
+              conditions:
+                - test: "StringEquals"
+                  variable: "aws:RequestedRegion"
+                  values:
+                    - "us-east-1"
             - sid: "DenyProdBuckets"
               effect: "Deny"
               actions:

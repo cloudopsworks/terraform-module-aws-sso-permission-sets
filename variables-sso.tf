@@ -19,11 +19,15 @@
 #         statements:                                    # (Required) One or more IAM policy statements.
 #           - sid: "SIDNAME"                             # (Optional) Statement ID. Default: null
 #             effect: "Allow"                            # (Required) Statement effect. Valid values: "Allow", "Deny".
-#             actions:                                   # (Required) List of IAM actions for the statement.
+#             actions:                                   # (Optional) List of IAM actions the statement allows or denies. Mutually exclusive with not_actions. Default: []
 #               - "s3:GetObject"
 #               - "s3:PutObject"
-#             resources:                                 # (Required) List of resource ARNs the statement applies to.
+#             not_actions:                               # (Optional) List of IAM actions the statement applies to by exclusion. Mutually exclusive with actions. Default: []
+#               - "s3:DeleteBucket"
+#             resources:                                 # (Optional) List of resource ARNs the statement applies to. Mutually exclusive with not_resources. Default: []
 #               - "arn:aws:s3:::mybucket/*"
+#             not_resources:                             # (Optional) List of resource ARNs the statement applies to by exclusion. Mutually exclusive with resources. Default: []
+#               - "arn:aws:s3:::otherbucket/*"
 #             conditions:                                # (Optional) List of conditions applied to the statement. Alias: condition. Default: []
 #               - test: "StringEquals"                   # (Required) Condition operator (when a conditions entry is provided). e.g. StringEquals, StringLike, ArnLike, Bool, IpAddress, DateGreaterThan.
 #                 variable: "aws:PrincipalTag/team"      # (Required) Condition key the operator is evaluated against.

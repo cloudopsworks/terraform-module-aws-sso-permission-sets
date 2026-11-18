@@ -14,7 +14,10 @@
 #     managed_policy_arns:                               # (Optional) List of AWS managed policy ARNs to attach. Default: []
 #       - "arn:aws:iam::aws:policy/AdministratorAccess"
 #       - "arn:aws:iam::aws:policy/SecurityAudit"
-#     inline_policy:                                     # (Optional) List of named inline policies to attach. Default: []
+#     customer_managed_policies:                         # (Optional) List of customer managed IAM policies to attach by name. The policy must exist with the same name and path in every account the permission set is provisioned to. Default: []
+#       - name: "MyCustomerPolicy"                       # (Required) Name of the customer managed policy.
+#         path: "/"                                    # (Optional) Path of the customer managed policy. Default: "/"
+#     inline_policy:                                     # (Optional) List of named inline policies. All entries are merged into the single inline policy of the permission set; statement sids must be unique across entries. Default: []
 #       - name: "InlinePolicy"                           # (Required) Name of the inline policy (when an inline_policy entry is provided).
 #         statements:                                    # (Required) One or more IAM policy statements.
 #           - sid: "SIDNAME"                             # (Optional) Statement ID. Default: null

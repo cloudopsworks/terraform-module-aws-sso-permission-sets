@@ -23,7 +23,8 @@ description: |-
   This module:
     - Creates one aws_ssoadmin_permission_set per declared permission set.
     - Attaches AWS Managed Policies provided in managed_policy_arns.
-    - Builds and attaches inline policies from high-level YAML statements.
+    - Attaches customer managed policies referenced by name/path in customer_managed_policies.
+    - Builds inline policies from high-level YAML statements and merges them into one inline policy per permission set.
     - Tags resources consistently using your organization context and extra tags.
   Outputs include the Identity Center instance identifiers and a map of created permission sets.
 
@@ -33,7 +34,9 @@ introduction: |-
   attachments in a repeatable, declarative way. It reads a list of permission_sets and for each one:
   - Creates the Permission Set with name, description, and session duration.
   - Attaches referenced AWS Managed Policies (validated via data.aws_iam_policy).
-  - Renders inline policies using aws_iam_policy_document from simple statements you define.
+  - Attaches customer managed policies by name and path.
+  - Renders inline policies using aws_iam_policy_document from simple statements you define, merging
+    every entry into the single inline policy that a permission set supports.
 
   The module auto-discovers your AWS IAM Identity Center instance (data.aws_ssoadmin_instances) and
   applies a consistent tagging strategy using the cloudopsworks/tags/local module. Organizational
@@ -81,7 +84,10 @@ usage: |-
   #     managed_policy_arns:                               # (Optional) List of AWS managed policy ARNs to attach. Default: []
   #       - "arn:aws:iam::aws:policy/AdministratorAccess"
   #       - "arn:aws:iam::aws:policy/SecurityAudit"
-  #     inline_policy:                                     # (Optional) List of named inline policies to attach. Default: []
+  #     customer_managed_policies:                         # (Optional) List of customer managed IAM policies to attach by name. The policy must exist with the same name and path in every account the permission set is provisioned to. Default: []
+  #       - name: "MyCustomerPolicy"                       # (Required) Name of the customer managed policy.
+  #         path: "/"                                    # (Optional) Path of the customer managed policy. Default: "/"
+  #     inline_policy:                                     # (Optional) List of named inline policies. All entries are merged into the single inline policy of the permission set; statement sids must be unique across entries. Default: []
   #       - name: "InlinePolicy"                           # (Required) Name of the inline policy (when an inline_policy entry is provided).
   #         statements:                                    # (Required) One or more IAM policy statements.
   #           - sid: "SIDNAME"                             # (Optional) Statement ID. Default: null
@@ -152,10 +158,32 @@ usage: |-
   Notes
   - `name` must be unique across `permission_sets`.
   - `managed_policy_arns` are validated via `data.aws_iam_policy`.
-  - `inline_policy` is compiled into an AWS IAM policy document and set on the permission set.
+  - `customer_managed_policies` are referenced by `name` and `path` (default `/`). IAM Identity Center does not create them: a policy with the same name and path must already exist in every account the permission set is assigned to, otherwise provisioning fails in that account.
+  - A permission set holds a single inline policy, so every `inline_policy` entry is rendered as its own IAM policy document and then merged (`source_policy_documents`) into one inline policy per permission set. Statement `sid` values must be unique across all entries of the same permission set.
+  - Permission sets without `inline_policy` entries get no inline policy resource.
   - Statement `conditions` (alias `condition`) are rendered as IAM policy condition blocks; each entry needs `test`, `variable`, and `values`.
   - Each statement takes either `actions` or `not_actions`, and either `resources` or `not_resources`; the pairs are mutually exclusive in AWS IAM.
   - `session_duration` must be an ISO 8601 duration (e.g., PT1H, PT8H, PT12H; max PT12H).
+
+  Upgrading from v1.2.8 or earlier
+
+  Inline policy resources are now keyed by permission set name (`"<permission-set>"`) instead of
+  `"<permission-set>-<inline-policy-name>"`. Move existing state entries **before** applying, so the
+  plan shows an in-place update instead of a destroy/create pair that could delete the new policy:
+
+  ```sh
+  # List the existing inline policy instances
+  terragrunt state list | grep aws_ssoadmin_permission_set_inline_policy
+
+  # Move each one to its permission set key (one move per permission set)
+  terragrunt state mv \
+    'aws_ssoadmin_permission_set_inline_policy.inline_policy["Admin-InlinePolicy"]' \
+    'aws_ssoadmin_permission_set_inline_policy.inline_policy["Admin"]'
+  ```
+
+  When a permission set had several `inline_policy` entries, move only one of them and remove the
+  others from state (`terragrunt state rm '<address>'`); they all pointed at the same inline policy,
+  which is replaced by the merged document on the next apply.
 
   Outputs
   - `identity_store_id`: string
@@ -198,6 +226,9 @@ examples: |-
       session_duration: "PT8H"
       managed_policy_arns:
         - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+      customer_managed_policies:
+        - name: "DataLakeBoundary"
+          path: "/platform/"
       inline_policy:
         - name: "GlueAdminExtras"
           statements:

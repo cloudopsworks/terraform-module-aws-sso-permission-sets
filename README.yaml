@@ -159,6 +159,26 @@ usage: |-
   - Each statement takes either `actions` or `not_actions`, and either `resources` or `not_resources`; the pairs are mutually exclusive in AWS IAM.
   - `session_duration` must be an ISO 8601 duration (e.g., PT1H, PT8H, PT12H; max PT12H).
 
+  Upgrading from v1.2.8 or earlier
+
+  Inline policy resources are now keyed by permission set name (`"<permission-set>"`) instead of
+  `"<permission-set>-<inline-policy-name>"`. Move existing state entries **before** applying, so the
+  plan shows an in-place update instead of a destroy/create pair that could delete the new policy:
+
+  ```sh
+  # List the existing inline policy instances
+  terragrunt state list | grep aws_ssoadmin_permission_set_inline_policy
+
+  # Move each one to its permission set key (one move per permission set)
+  terragrunt state mv \
+    'aws_ssoadmin_permission_set_inline_policy.inline_policy["Admin-InlinePolicy"]' \
+    'aws_ssoadmin_permission_set_inline_policy.inline_policy["Admin"]'
+  ```
+
+  When a permission set had several `inline_policy` entries, move only one of them and remove the
+  others from state (`terragrunt state rm '<address>'`); they all pointed at the same inline policy,
+  which is replaced by the merged document on the next apply.
+
   Outputs
   - `identity_store_id`: string
   - `identity_store_arn`: string

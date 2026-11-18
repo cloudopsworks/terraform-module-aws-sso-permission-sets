@@ -18,6 +18,15 @@ locals {
       }
     }
   ]...)
+  customer_managed_policies = merge([
+    for p in var.permission_sets : {
+      for pol in try(p.customer_managed_policies, []) : "${p.name}-${pol.name}" => {
+        permission_set = p.name
+        name           = pol.name
+        path           = try(pol.path, "/")
+      }
+    }
+  ]...)
   inline_policies = merge([
     for p in var.permission_sets : {
       for pol in try(p.inline_policy, []) : "${p.name}-${pol.name}" => {
@@ -93,3 +102,14 @@ resource "aws_ssoadmin_permission_set_inline_policy" "inline_policy" {
   permission_set_arn = aws_ssoadmin_permission_set.this[each.key].arn
   inline_policy      = data.aws_iam_policy_document.inline_policy_merged[each.key].json
 }
+
+resource "aws_ssoadmin_customer_managed_policy_attachment" "customer" {
+  for_each           = local.customer_managed_policies
+  instance_arn       = data.aws_ssoadmin_instances.sso.arns[0]
+  permission_set_arn = aws_ssoadmin_permission_set.this[each.value.permission_set].arn
+  customer_managed_policy_reference {
+    name = each.value.name
+    path = each.value.path
+  }
+}
+

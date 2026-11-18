@@ -18,6 +18,7 @@ Manage AWS IAM Identity Center (formerly AWS SSO) Permission Sets at scale.
 This module:
   - Creates one aws_ssoadmin_permission_set per declared permission set.
   - Attaches AWS Managed Policies provided in managed_policy_arns.
+  - Attaches customer managed policies referenced by name/path in customer_managed_policies.
   - Builds inline policies from high-level YAML statements and merges them into one inline policy per permission set.
   - Tags resources consistently using your organization context and extra tags.
 Outputs include the Identity Center instance identifiers and a map of created permission sets.
@@ -54,6 +55,7 @@ This Terraform module provisions AWS IAM Identity Center (SSO) Permission Sets a
 attachments in a repeatable, declarative way. It reads a list of permission_sets and for each one:
 - Creates the Permission Set with name, description, and session duration.
 - Attaches referenced AWS Managed Policies (validated via data.aws_iam_policy).
+- Attaches customer managed policies by name and path.
 - Renders inline policies using aws_iam_policy_document from simple statements you define, merging
   every entry into the single inline policy that a permission set supports.
 
@@ -108,6 +110,9 @@ Generated `inputs.yaml` (from `.boilerplate/inputs.yaml`)
 #     managed_policy_arns:                               # (Optional) List of AWS managed policy ARNs to attach. Default: []
 #       - "arn:aws:iam::aws:policy/AdministratorAccess"
 #       - "arn:aws:iam::aws:policy/SecurityAudit"
+#     customer_managed_policies:                         # (Optional) List of customer managed IAM policies to attach by name. The policy must exist with the same name and path in every account the permission set is provisioned to. Default: []
+#       - name: "MyCustomerPolicy"                       # (Required) Name of the customer managed policy.
+#         path: "/"                                    # (Optional) Path of the customer managed policy. Default: "/"
 #     inline_policy:                                     # (Optional) List of named inline policies. All entries are merged into the single inline policy of the permission set; statement sids must be unique across entries. Default: []
 #       - name: "InlinePolicy"                           # (Required) Name of the inline policy (when an inline_policy entry is provided).
 #         statements:                                    # (Required) One or more IAM policy statements.
@@ -179,6 +184,7 @@ inputs = {
 Notes
 - `name` must be unique across `permission_sets`.
 - `managed_policy_arns` are validated via `data.aws_iam_policy`.
+- `customer_managed_policies` are referenced by `name` and `path` (default `/`). IAM Identity Center does not create them: a policy with the same name and path must already exist in every account the permission set is assigned to, otherwise provisioning fails in that account.
 - A permission set holds a single inline policy, so every `inline_policy` entry is rendered as its own IAM policy document and then merged (`source_policy_documents`) into one inline policy per permission set. Statement `sid` values must be unique across all entries of the same permission set.
 - Permission sets without `inline_policy` entries get no inline policy resource.
 - Statement `conditions` (alias `condition`) are rendered as IAM policy condition blocks; each entry needs `test`, `variable`, and `values`.
@@ -265,6 +271,9 @@ permission_sets:
     session_duration: "PT8H"
     managed_policy_arns:
       - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+    customer_managed_policies:
+      - name: "DataLakeBoundary"
+        path: "/platform/"
     inline_policy:
       - name: "GlueAdminExtras"
         statements:
@@ -369,6 +378,7 @@ Available targets:
 
 | Name | Type |
 | ---- | ---- |
+| [aws_ssoadmin_customer_managed_policy_attachment.customer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_customer_managed_policy_attachment) | resource |
 | [aws_ssoadmin_managed_policy_attachment.policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_managed_policy_attachment) | resource |
 | [aws_ssoadmin_permission_set.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_permission_set) | resource |
 | [aws_ssoadmin_permission_set_inline_policy.inline_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_permission_set_inline_policy) | resource |

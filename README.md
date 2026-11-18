@@ -18,7 +18,7 @@ Manage AWS IAM Identity Center (formerly AWS SSO) Permission Sets at scale.
 This module:
   - Creates one aws_ssoadmin_permission_set per declared permission set.
   - Attaches AWS Managed Policies provided in managed_policy_arns.
-  - Builds and attaches inline policies from high-level YAML statements.
+  - Builds inline policies from high-level YAML statements and merges them into one inline policy per permission set.
   - Tags resources consistently using your organization context and extra tags.
 Outputs include the Identity Center instance identifiers and a map of created permission sets.
 
@@ -54,7 +54,8 @@ This Terraform module provisions AWS IAM Identity Center (SSO) Permission Sets a
 attachments in a repeatable, declarative way. It reads a list of permission_sets and for each one:
 - Creates the Permission Set with name, description, and session duration.
 - Attaches referenced AWS Managed Policies (validated via data.aws_iam_policy).
-- Renders inline policies using aws_iam_policy_document from simple statements you define.
+- Renders inline policies using aws_iam_policy_document from simple statements you define, merging
+  every entry into the single inline policy that a permission set supports.
 
 The module auto-discovers your AWS IAM Identity Center instance (data.aws_ssoadmin_instances) and
 applies a consistent tagging strategy using the cloudopsworks/tags/local module. Organizational
@@ -107,7 +108,7 @@ Generated `inputs.yaml` (from `.boilerplate/inputs.yaml`)
 #     managed_policy_arns:                               # (Optional) List of AWS managed policy ARNs to attach. Default: []
 #       - "arn:aws:iam::aws:policy/AdministratorAccess"
 #       - "arn:aws:iam::aws:policy/SecurityAudit"
-#     inline_policy:                                     # (Optional) List of named inline policies to attach. Default: []
+#     inline_policy:                                     # (Optional) List of named inline policies. All entries are merged into the single inline policy of the permission set; statement sids must be unique across entries. Default: []
 #       - name: "InlinePolicy"                           # (Required) Name of the inline policy (when an inline_policy entry is provided).
 #         statements:                                    # (Required) One or more IAM policy statements.
 #           - sid: "SIDNAME"                             # (Optional) Statement ID. Default: null
@@ -178,7 +179,8 @@ inputs = {
 Notes
 - `name` must be unique across `permission_sets`.
 - `managed_policy_arns` are validated via `data.aws_iam_policy`.
-- `inline_policy` is compiled into an AWS IAM policy document and set on the permission set.
+- A permission set holds a single inline policy, so every `inline_policy` entry is rendered as its own IAM policy document and then merged (`source_policy_documents`) into one inline policy per permission set. Statement `sid` values must be unique across all entries of the same permission set.
+- Permission sets without `inline_policy` entries get no inline policy resource.
 - Statement `conditions` (alias `condition`) are rendered as IAM policy condition blocks; each entry needs `test`, `variable`, and `values`.
 - Each statement takes either `actions` or `not_actions`, and either `resources` or `not_resources`; the pairs are mutually exclusive in AWS IAM.
 - `session_duration` must be an ISO 8601 duration (e.g., PT1H, PT8H, PT12H; max PT12H).
@@ -352,6 +354,7 @@ Available targets:
 | [aws_ssoadmin_permission_set_inline_policy.inline_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_permission_set_inline_policy) | resource |
 | [aws_iam_policy.managed_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy) | data source |
 | [aws_iam_policy_document.inline_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.inline_policy_merged](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 | [aws_ssoadmin_instances.sso](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ssoadmin_instances) | data source |
 

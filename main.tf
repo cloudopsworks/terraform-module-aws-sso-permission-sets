@@ -27,6 +27,11 @@ locals {
       }
     }
   ]...)
+  inline_policy_sets = {
+    for p in var.permission_sets : p.name => [
+      for pol in try(p.inline_policy, []) : "${p.name}-${pol.name}"
+    ] if length(try(p.inline_policy, [])) > 0
+  }
 }
 
 resource "aws_ssoadmin_permission_set" "this" {
@@ -74,9 +79,17 @@ data "aws_iam_policy_document" "inline_policy" {
   }
 }
 
+# A permission set holds a single inline policy, so every inline_policy entry of the
+# same permission set is merged into one document before it is attached.
+data "aws_iam_policy_document" "inline_policy_merged" {
+  for_each                = local.inline_policy_sets
+  version                 = "2012-10-17"
+  source_policy_documents = [for key in each.value : data.aws_iam_policy_document.inline_policy[key].json]
+}
+
 resource "aws_ssoadmin_permission_set_inline_policy" "inline_policy" {
-  for_each           = local.inline_policies
+  for_each           = local.inline_policy_sets
   instance_arn       = data.aws_ssoadmin_instances.sso.arns[0]
-  permission_set_arn = aws_ssoadmin_permission_set.this[each.value.permission_set].arn
-  inline_policy      = data.aws_iam_policy_document.inline_policy[each.key].json
+  permission_set_arn = aws_ssoadmin_permission_set.this[each.key].arn
+  inline_policy      = data.aws_iam_policy_document.inline_policy_merged[each.key].json
 }
